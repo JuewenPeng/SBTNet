@@ -103,7 +103,7 @@ with torch.no_grad():
         pred = pred[0].permute(1, 2, 0).detach().cpu().numpy()
 
         save_path = os.path.join(args.save_folder, os.path.basename(src_path).replace('.src', '.src_out'))
-        cv2.imwrite(save_path, pred[..., ::-1] * 255, [int(cv2.IMWRITE_JPEG_QUALITY), 100])
+        cv2.imwrite(save_path, pred[..., ::-1] * 255)  # , [int(cv2.IMWRITE_JPEG_QUALITY), 100])
 
 print('runtime per image[s]:', duration / len(src_paths))
 print("finished")
