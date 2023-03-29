@@ -92,7 +92,7 @@ with torch.no_grad():
         # cateye_coord = F.pad(cateye_coord, pad=(0, w_pad - w, 0, h_pad - h), mode='replicate')
 
         ##### disable AlphaNet while testing real-world images #####
-        if 'real' not in src_path:
+        if 'real_' not in src_path:
             pred, pred_alpha = model(src, src_lens_type, tgt_lens_type, src_F, tgt_F, disparity, cateye_coord, use_alpha=True)
         else:
             pred, pred_alpha = model(src, src_lens_type, tgt_lens_type, src_F, tgt_F, disparity, cateye_coord, use_alpha=False)
