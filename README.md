@@ -1,6 +1,9 @@
 # SBTNet
 Our solution in competition NTIRE 2023 Bokeh Effect Transformation: https://codalab.lisn.upsaclay.fr/competitions/10229.
 
+## News
+- *2023/3/29:* Update the test results and the pretrained model (**AlphaNet is disabled while testing the real-world images**).
+
 ## Test Results
 Download the test results from [Google Drive](https://drive.google.com/drive/folders/1_WZjCtJXxySboWzFcAOhilARLJpMHzGC?usp=share_link).
 
