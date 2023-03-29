@@ -1,11 +1,3 @@
-'''
-This source code is licensed under the license found in the LICENSE file.
-This is the implementation of the "Learning to deblur using light field generated and real defocus images" paper accepted to CVPR 2022.
-Project GitHub repository: https://github.com/lingyanruan/DRBNet
-Email: lyruanruan@gmail.com
-Copyright (c) 2022-present, Lingyan Ruan
-'''
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -780,7 +772,7 @@ class SBTNet(nn.Module):
         self.alphanet = AlphaNet()
         self.refinenet = RefineNet()
 
-    def forward(self, src, src_lens_type, tgt_lens_type, src_F, tgt_F, disparity, cateye_coord):
+    def forward(self, src, src_lens_type, tgt_lens_type, src_F, tgt_F, disparity, cateye_coord, use_alpha):
         x = src * 2 - 1
         x_ori = x
         h, w = x.shape[2:]
@@ -788,7 +780,10 @@ class SBTNet(nn.Module):
         x = F.interpolate(x, size=(h//2, w//2), mode='bilinear', align_corners=True)
         cateye_coord = F.interpolate(cateye_coord, size=(h//2, w//2), mode='bilinear', align_corners=True)
 
-        alpha = self.alphanet(x)
+        if use_alpha:
+            alpha = self.alphanet(x)
+        else:
+            alpha = torch.zeros_like(x[:, :1])
 
         x = torch.cat([
             x,
