@@ -91,7 +91,12 @@ with torch.no_grad():
         src = F.pad(src, pad=(0, w_pad - w, 0, h_pad - h), mode='replicate')
         cateye_coord = F.pad(cateye_coord, pad=(0, w_pad - w, 0, h_pad - h), mode='replicate')
 
-        pred, pred_alpha = model(src, src_lens_type, tgt_lens_type, src_F, tgt_F, disparity, cateye_coord)
+        ##### disable AlphaNet while testing real-world images #####
+        if 'real' not in src_path:
+            pred, pred_alpha = model(src, src_lens_type, tgt_lens_type, src_F, tgt_F, disparity, cateye_coord, use_alpha=True)
+        else:
+            pred, pred_alpha = model(src, src_lens_type, tgt_lens_type, src_F, tgt_F, disparity, cateye_coord, use_alpha=False)
+        ############################################################
 
         pred = pred[..., :h, :w].clamp(0, 1)
         pred_alpha = pred_alpha[..., :h, :w]
@@ -103,7 +108,7 @@ with torch.no_grad():
         pred = pred[0].permute(1, 2, 0).detach().cpu().numpy()
 
         save_path = os.path.join(args.save_folder, os.path.basename(src_path).replace('.src', '.src_out'))
-        cv2.imwrite(save_path, pred[..., ::-1] * 255)  # , [int(cv2.IMWRITE_JPEG_QUALITY), 100])
+        cv2.imwrite(save_path, pred[..., ::-1] * 255, [int(cv2.IMWRITE_JPEG_QUALITY), 100])
 
 print('runtime per image[s]:', duration / len(src_paths))
 print("finished")
