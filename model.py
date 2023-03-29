@@ -212,7 +212,6 @@ class DRBNet_single(nn.Module):
             conv(ch2, 3, kernel_size=1, stride=1)
         )
 
-    ##########################################################################
     def forward(self, C):
         # feature extractor
         f1 = self.conv1_3(self.conv1_2(self.conv1_1(C)))
@@ -285,7 +284,6 @@ class AlphaNet(nn.Module):
         ch2 = ch1 * 2
         ch3 = ch1 * 4
         ch4 = ch1 * 8
-        ch5 = ch1 * 8
 
         # feature extractor
         self.conv1_1 = conv(3, ch1, kernel_size=ks, stride=1)
@@ -303,23 +301,6 @@ class AlphaNet(nn.Module):
         self.conv4_1 = conv(ch3, ch4, kernel_size=ks, stride=2)
         self.conv4_2 = conv(ch4, ch4, kernel_size=ks, stride=1)
         self.conv4_3 = conv(ch4, ch4, kernel_size=ks, stride=1)
-
-        ######################## TODO: comment
-        # self.conv5_1 = conv(ch4, ch5, kernel_size=ks, stride=2)
-        # self.conv5_2 = conv(ch5, ch5, kernel_size=ks, stride=1)
-        # self.conv5_3 = conv(ch5, ch5, kernel_size=ks, stride=1)
-        #
-        # self.conv5_4 = nn.Sequential(
-        #     conv(ch5, ch5, kernel_size=ks),
-        #     resnet_block(ch5, kernel_size=ks, res_num=1),
-        #     resnet_block(ch5, kernel_size=ks, res_num=1),
-        #     conv(ch5, ch5, kernel_size=ks))
-        #
-        # self.upconv4_u = upconv(ch5, ch4)
-        # self.upconv4_0 = conv(ch4, ch4, kernel_size=ks, stride=1)
-        # self.upconv4_1 = resnet_block(ch4, kernel_size=ks, res_num=1)
-        # self.upconv4_2 = resnet_block(ch4, kernel_size=ks, res_num=1)
-        #########################
 
         self.conv4_4 = nn.Sequential(
             conv(ch4, ch4, kernel_size=ks),
@@ -350,19 +331,12 @@ class AlphaNet(nn.Module):
 
         self.out_res = conv(ch1, 1, kernel_size=3, act='Sigmoid')
 
-    ##########################################################################
     def forward(self, C):
         # feature extractor
         f1 = self.conv1_3(self.conv1_2(self.conv1_1(C)))
         f2 = self.conv2_3(self.conv2_2(self.conv2_1(f1)))
         f3 = self.conv3_3(self.conv3_2(self.conv3_1(f2)))
         f4 = self.conv4_3(self.conv4_2(self.conv4_1(f3)))
-        # f_C = self.conv5_3(self.conv5_2(self.conv5_1(f4)))
-
-        # f = self.conv5_4(f_C)
-
-        # f = self.upconv4_u(f) + self.upconv4_0(f4)
-        # f = self.upconv4_2(self.upconv4_1(f))
 
         f = self.conv4_4(f4)
 
@@ -430,17 +404,6 @@ class RefineNet(nn.Module):
 
         self.out_res = conv(ch1, 3, kernel_size=3, act=None)
 
-        # self.downsample = nn.PixelUnshuffle(2)
-        # self.layer = nn.Sequential(
-        #     conv(12 + 3, ch, kernel_size=ks, stride=1),
-        #     resnet_block(ch, kernel_size=ks, res_num=1),
-        #     resnet_block(ch, kernel_size=ks, res_num=1),
-        #     resnet_block(ch, kernel_size=ks, res_num=1),
-        #     resnet_block(ch, kernel_size=ks, res_num=1),
-        #     nn.Conv2d(ch, 12, kernel_size=ks, stride=1, padding=(ks - 1) // 2)
-        # )
-        # self.upsample = nn.PixelShuffle(2)
-
     def forward(self, x_lr, alpha_lr, src):  # , cateye_coord):
         x = F.interpolate(x_lr, size=src.shape[2:], mode='bilinear', align_corners=True)
         alpha = F.interpolate(alpha_lr, size=src.shape[2:], mode='bilinear', align_corners=True)
@@ -464,89 +427,7 @@ class RefineNet(nn.Module):
         f = self.upconv1_2(self.upconv1_1(f))
 
         x = self.out_res(f)
-        return x  # torch.clip(x, -1.0, 1.0)
-
-
-import copy
-class DRBNet_multi(nn.Module):
-    def __init__(self, pretrained=True):
-        super().__init__()
-        network = DRBNet_single()
-        ckpt_path = '/data4/pengjuewen/Code/NTIRE23BokehTransformation/models/single_drbnet.pth'
-        if pretrained:
-            network.load_state_dict(torch.load(ckpt_path))
-        old_conv1_1_0 = network.conv1_1[0]
-        new_conv1_1_0 = nn.Conv2d(
-            in_channels=old_conv1_1_0.in_channels + 4,
-            out_channels=old_conv1_1_0.out_channels,
-            kernel_size=old_conv1_1_0.kernel_size,
-            stride=old_conv1_1_0.stride,
-            padding=old_conv1_1_0.padding,
-            bias=True if old_conv1_1_0.bias is not None else False,
-        )
-        if pretrained:
-            new_conv1_1_0.weight[:, :3, :, :].data.copy_(old_conv1_1_0.weight.clone())
-        network.conv1_1[0] = new_conv1_1_0
-        self.net14to18 = copy.deepcopy(network)
-        self.net14to160 = copy.deepcopy(network)
-        self.net18to14 = copy.deepcopy(network)
-        self.net18to18 = copy.deepcopy(network)
-        self.net18to160 = copy.deepcopy(network)
-        self.net160to14 = copy.deepcopy(network)
-        self.net160to18 = copy.deepcopy(network)
-
-        self.alphanet = AlphaNet()
-
-    def forward(self, src, src_lens_type, tgt_lens_type, src_F, tgt_F, disparity):
-        x = src * 2 - 1
-
-        alpha = self.alphanet(x)
-
-        # b, c, h, w = src.shape
-        # x = F.interpolate(src, scale_factor=0.5, mode='bilinear', align_corners=True)
-        x = torch.cat([
-            x,
-            alpha,
-            torch.ones_like(x[:, :1]) * src_lens_type[:, None, None, None],
-            torch.ones_like(x[:, :1]) * tgt_lens_type[:, None, None, None],
-            torch.ones_like(x[:, :1]) * disparity[:, None, None, None]
-        ], dim=1)
-        if src.shape[0] == 1:
-            if src_F[0] == 1.4 and tgt_F[0] == 1.8:
-                x = self.net14to18(x)
-            elif src_F[0] == 1.4 and tgt_F[0] == 16.0:
-                x = self.net14to160(x)
-            elif src_F[0] == 1.8 and tgt_F[0] == 1.4:
-                x = self.net18to14(x)
-            elif src_F[0] == 1.8 and tgt_F[0] == 1.8:
-                x = self.net18to18(x)
-            elif src_F[0] == 1.8 and tgt_F[0] == 16.0:
-                x = self.net18to160(x)
-            elif src_F[0] == 16.0 and tgt_F[0] == 1.4:
-                x = self.net160to14(x)
-            elif src_F[0] == 16.0 and tgt_F[0] == 1.8:
-                x = self.net160to18(x)
-            else:
-                print('F-value error')
-                exit()
-        else:
-            x = ((src_F == 1.4) * (tgt_F == 1.8))[:, None, None, None] * self.net14to18(x) + \
-                ((src_F == 1.4) * (tgt_F == 16.0))[:, None, None, None] * self.net14to160(x) + \
-                ((src_F == 1.8) * (tgt_F == 1.4))[:, None, None, None] * self.net18to14(x) + \
-                ((src_F == 1.8) * (tgt_F == 1.8))[:, None, None, None] * self.net18to18(x) + \
-                ((src_F == 1.8) * (tgt_F == 16.0))[:, None, None, None] * self.net18to160(x) + \
-                ((src_F == 16.0) * (tgt_F == 1.4))[:, None, None, None] * self.net160to14(x) + \
-                ((src_F == 16.0) * (tgt_F == 1.8))[:, None, None, None] * self.net160to18(x)
-
-        # out = self.refinenet(x, src)
-        # out = 0.5 * out + 0.5
-        # out = F.interpolate(out, size=(h, w), mode='bilinear', align_corners=True)
-        x = 0.5 * x + 0.5
-        # x = F.interpolate(x, size=(h, w), mode='bilinear', align_corners=True)
-        return x, alpha
-
-
-
+        return x
 
 class DRBFeature(nn.Module):
     def __init__(self, pretrained_path=None):
@@ -598,7 +479,6 @@ class DRBFeature(nn.Module):
         if pretrained_path is not None:
             self.load_state_dict(torch.load(pretrained_path), strict=False)
 
-    ##########################################################################
     def forward(self, C):
         fs = []
         # feature extractor
@@ -712,7 +592,6 @@ class DRBKernel(nn.Module):
         if pretrained_path is not None:
             self.load_state_dict(torch.load(pretrained_path), strict=False)
 
-    ##########################################################################
     def forward(self, C, fs):
         img_d8 = F.interpolate(C[:, :3], scale_factor=1 / 8, mode='area')
         img_d8_feature = self.img_d8_feature(img_d8)
