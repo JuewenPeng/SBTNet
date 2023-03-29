@@ -86,10 +86,10 @@ with torch.no_grad():
         torch.cuda.synchronize()
         t0 = time.time()
 
-        h_pad = (h + 95) // 96 * 96
-        w_pad = (w + 95) // 96 * 96
-        src = F.pad(src, pad=(0, w_pad - w, 0, h_pad - h), mode='replicate')
-        cateye_coord = F.pad(cateye_coord, pad=(0, w_pad - w, 0, h_pad - h), mode='replicate')
+        # h_pad = (h + 95) // 96 * 96
+        # w_pad = (w + 95) // 96 * 96
+        # src = F.pad(src, pad=(0, w_pad - w, 0, h_pad - h), mode='replicate')
+        # cateye_coord = F.pad(cateye_coord, pad=(0, w_pad - w, 0, h_pad - h), mode='replicate')
 
         ##### disable AlphaNet while testing real-world images #####
         if 'real' not in src_path:
@@ -98,8 +98,9 @@ with torch.no_grad():
             pred, pred_alpha = model(src, src_lens_type, tgt_lens_type, src_F, tgt_F, disparity, cateye_coord, use_alpha=False)
         ############################################################
 
-        pred = pred[..., :h, :w].clamp(0, 1)
-        pred_alpha = pred_alpha[..., :h, :w]
+        pred = pred.clamp(0, 1)
+        # pred = pred[..., :h, :w]
+        # pred_alpha = pred_alpha[..., :h, :w]
 
         torch.cuda.synchronize()
         t1 = time.time()
